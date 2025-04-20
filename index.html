@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Q&A Restructurer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        /* Custom styles if needed, although Tailwind is preferred */
+        body {
+            font-family: 'Inter', sans-serif; /* Using Inter font commonly paired with Tailwind */
+        }
+        /* Add a subtle background */
+        body {
+            background-color: #f3f4f6; /* Tailwind gray-100 */
+        }
+        /* Ensure textareas maintain whitespace formatting */
+        textarea {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md">
+        <h1 class="text-2xl font-bold mb-4 text-center text-gray-800">Quiz Q&A Restructurer</h1>
+
+        <div class="mb-6">
+            <label for="markdownInput" class="block text-sm font-medium text-gray-700 mb-1">Paste Markdown Input:</label>
+            <textarea id="markdownInput" rows="15" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="Paste your Markdown quiz content here... e.g.,
+
+## Quiz
+
+1. Question one?
+2. Question two?
+
+## Quiz Answer Key
+
+1. Answer one.
+2. Answer two."></textarea>
+        </div>
+
+        <div class="text-center mb-6">
+            <button id="processButton" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md shadow focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out">
+                <i class="fas fa-sync-alt mr-2"></i> Restructure Q&A
+            </button>
+        </div>
+
+        <div>
+            <label for="output" class="block text-sm font-medium text-gray-700 mb-1">Formatted Output:</label>
+            <textarea id="output" rows="15" class="w-full p-3 border border-gray-300 rounded-md bg-gray-50 shadow-sm" readonly placeholder="Formatted Q&A pairs will appear here..."></textarea>
+        </div>
+
+        <div id="messageArea" class="mt-4 text-center text-red-600 font-medium"></div>
+
+    </div>
+
+    <script>
+        // Get references to the DOM elements
+        const markdownInput = document.getElementById('markdownInput');
+        const processButton = document.getElementById('processButton');
+        const outputArea = document.getElementById('output');
+        const messageArea = document.getElementById('messageArea');
+
+        // Add event listener to the button
+        processButton.addEventListener('click', () => {
+            const markdownText = markdownInput.value.trim();
+            messageArea.textContent = ''; // Clear previous messages
+            outputArea.value = ''; // Clear previous output
+
+            if (!markdownText) {
+                messageArea.textContent = 'Input cannot be empty.';
+                return;
+            }
+
+            try {
+                // Split the input into questions and answers sections
+                const sections = markdownText.split(/\n##\s*Quiz Answer Key\s*\n/i);
+                if (sections.length !== 2) {
+                    throw new Error('Could not find "## Quiz Answer Key" separator or format is incorrect.');
+                }
+
+                const questionsText = sections[0].replace(/^##\s*Quiz\s*\n/i, '').trim(); // Remove header
+                const answersText = sections[1].trim();
+
+                // --- Parse Questions ---
+                const questions = {};
+                const questionLines = questionsText.split('\n');
+                const questionRegex = /^(\d+)\.\s*(.*)/; // Regex to capture number and question
+
+                questionLines.forEach(line => {
+                    line = line.trim();
+                    if (line) {
+                        const match = line.match(questionRegex);
+                        if (match) {
+                            const num = parseInt(match[1], 10);
+                            const text = match[2].trim();
+                            questions[num] = text;
+                        } else {
+                            // Handle potential multi-line questions if needed,
+                            // for now, assume single line per question based on input format
+                             console.warn(`Skipping line in questions section (doesn't match format 'N. Text'): "${line}"`);
+                        }
+                    }
+                });
+
+                 // --- Parse Answers ---
+                const answers = {};
+                const answerLines = answersText.split('\n');
+                const answerRegex = /^(\d+)\.\s*(.*)/; // Regex to capture number and answer
+
+                let currentAnswerNum = null;
+                let currentAnswerText = '';
+
+                answerLines.forEach(line => {
+                    line = line.trim();
+                    if (line) {
+                        const match = line.match(answerRegex);
+                        if (match) {
+                            // If we were building a previous answer, save it first
+                            if (currentAnswerNum !== null) {
+                                answers[currentAnswerNum] = currentAnswerText.trim();
+                            }
+                            // Start the new answer
+                            currentAnswerNum = parseInt(match[1], 10);
+                            currentAnswerText = match[2].trim();
+                        } else if (currentAnswerNum !== null) {
+                            // This line belongs to the current answer (multi-line answer)
+                            currentAnswerText += '\n' + line;
+                        } else {
+                             console.warn(`Skipping line in answers section (doesn't match format 'N. Text' or isn't part of a multi-line answer): "${line}"`);
+                        }
+                    }
+                });
+                 // Save the last answer being built
+                if (currentAnswerNum !== null) {
+                    answers[currentAnswerNum] = currentAnswerText.trim();
+                }
+
+
+                // --- Combine and Format ---
+                const outputLines = [];
+                const questionNumbers = Object.keys(questions).map(Number).sort((a, b) => a - b);
+
+                if (questionNumbers.length === 0) {
+                     throw new Error('No questions found in the input.');
+                }
+
+                questionNumbers.forEach(num => {
+                    const question = questions[num];
+                    const answer = answers[num];
+
+                    if (question && answer) {
+                        outputLines.push(`Question ${num}: ${question}`);
+                        outputLines.push(`Answer:\n${answer}`);
+                    } else if (question) {
+                         outputLines.push(`Question ${num}: ${question}`);
+                         outputLines.push(`Answer:\n-- Answer not found --`);
+                         console.warn(`Answer for question ${num} not found.`);
+                    }
+                });
+
+                // Display the formatted output
+                outputArea.value = outputLines.join('\n\n'); // Separate pairs with a double newline
+
+            } catch (error) {
+                console.error("Error processing markdown:", error);
+                messageArea.textContent = `Error: ${error.message}`;
+            }
+        });
+
+        // Optional: Add initial example content to the input textarea
+        markdownInput.value = `## Quiz
+
+1. What is the primary function of the DALL-E model within the Azure OpenAI service?
+2. Describe two potential applications for using AI to generate graphics as highlighted in the introduction.
+3. Explain the key difference between DALL-E generating an image and a traditional image search engine finding an image.
+4. What are the three adjustable resolution (size) options available when generating images using DALL-E 3 in the Azure AI Studio playground?
+5. Besides resolution, what are two other settings you can adjust in the DALL-E playground to influence the generated image?
+6. When using the Azure OpenAI REST API to interact with DALL-E, what HTTP method and content type are typically used to initiate image generation?
+7. What are the three mandatory parameters that must be included in the JSON body when making a REST API call to generate an image with DALL-E?
+8. How does the process of retrieving the generated image URL differ between DALL-E 2 and DALL-E 3 when using the REST API?
+9. What key information is contained within the "data" element of the JSON response when a DALL-E 3 image generation request is successful via the REST API?
+10. What is the purpose of the "revised_prompt" field in the DALL-E 3 REST API response?
+
+## Quiz Answer Key
+
+1. The primary function of the DALL-E model within the Azure OpenAI service is to generate original images based on natural language prompts provided by the user. It interprets these descriptions and creates new, unique graphical content.
+2. Two potential applications for AI-generated graphics are creating illustrations or photorealistic images for articles or marketing materials, and generating unique product or company logos. These applications leverage AI's ability to produce visuals from textual descriptions.
+3. The key difference is that DALL-E *generates* original images based on its training data and the provided prompt, whereas a traditional image search engine *finds* existing images from a curated catalog based on keywords. DALL-E creates something new rather than retrieving something pre-existing.
+4. The three adjustable resolution (size) options available for DALL-E 3 in the Azure AI Studio playground are 1024x1024 (default), 1792x1024, and 1024x1792. These options allow users to control the dimensions of the output image.
+5. Besides resolution, two other settings that can be adjusted in the DALL-E playground are the image style (such as vivid or natural) and the image quality (choose from standard or hd). These settings allow for further customization of the generated image's appearance.
+6. When using the Azure OpenAI REST API, a POST request is typically used to initiate the image generation process. The content type of the request body is usually JSON, containing the necessary parameters for the image generation.
+7. The three mandatory parameters in the JSON body for a DALL-E REST API call are "prompt" (the text description of the desired image), "n" (the number of images to generate, which is 1 for DALL-E 3), and "size" (the desired resolution of the image).
+8. With DALL-E 2, the REST API initially returns an operation-location header with a URL that the application needs to poll to get the image results. In contrast, with DALL-E 3, the generated image URL is directly included in the synchronous response to the initial POST request.
+9. The "data" element in the DALL-E 3 REST API response contains a JSON array. Each object in the array includes the "url" of the generated PNG image file and the "revised_prompt" that was used to generate the image.
+10. The purpose of the "revised_prompt" field in the DALL-E 3 REST API response is to show the potentially modified version of the original prompt that the system used to generate the image. This indicates any adjustments made by DALL-E to achieve better results.`;
+
+    </script>
+
+</body>
+</html>

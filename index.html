@@ -157,17 +157,18 @@
                     const answer = answers[num];
 
                     if (question && answer) {
-                        outputLines.push(`Question ${num}: ${question}`);
-                        outputLines.push(`Answer:\n${answer}`);
+                        outputLines.push(`**Question**: ${num}\n${question}`);
+                        outputLines.push(`**Answer**: ${answer}`);
                     } else if (question) {
-                         outputLines.push(`Question ${num}: ${question}`);
-                         outputLines.push(`Answer:\n-- Answer not found --`);
+                         outputLines.push(`Question: ${num}\n${question}`);
+                         outputLines.push(`Answer: -- Answer not found --`);
                          console.warn(`Answer for question ${num} not found.`);
                     }
+                    outputLines.push(''); // Add a blank line between Q&A pairs
                 });
 
                 // Display the formatted output
-                outputArea.value = outputLines.join('\n\n'); // Separate pairs with a double newline
+                outputArea.value = outputLines.join('\n'); // Separate pairs with a double newline
 
             } catch (error) {
                 console.error("Error processing markdown:", error);

@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quiz Q&A Restructurer</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Quiz Q&A Restructurer</title>    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- Add Marked.js for Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         /* Custom styles if needed, although Tailwind is preferred */
         body {
@@ -28,11 +29,10 @@
 <body class="p-4 md:p-8">
 
     <div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md">
-        <h1 class="text-2xl font-bold mb-4 text-center text-gray-800">Quiz Q&A Restructurer</h1>
-
-        <div class="mb-6">
+        <h1 class="text-2xl font-bold mb-4 text-center text-gray-800">Quiz Q&A Restructurer</h1>        <div class="mb-6">
             <label for="markdownInput" class="block text-sm font-medium text-gray-700 mb-1">Paste Markdown Input:</label>
-            <textarea id="markdownInput" rows="15" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="Paste your Markdown quiz content here... e.g.,
+            <div class="relative">
+                <textarea id="markdownInput" rows="15" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="Paste your Markdown quiz content here... e.g.,
 
 ## Quiz
 
@@ -43,22 +43,40 @@
 
 1. Answer one.
 2. Answer two."></textarea>
-        </div>        <div class="text-center mb-6">
+                <button id="previewInputButton" class="absolute top-3 right-3 bg-gray-200 hover:bg-gray-300 text-gray-700 p-2 rounded-md opacity-70 hover:opacity-100 transition-opacity" title="Preview markdown">
+                    <i class="fas fa-eye"></i>
+                </button>
+            </div>
+        </div><div class="text-center mb-6">
             <button id="processButton" class="bg-white hover:bg-gray-50 text-gray-800 border border-gray-300 py-2 px-4 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition duration-150 ease-in-out">
                 <i class="fas fa-sync-alt mr-2 text-gray-500"></i> Convert to Q&A Format
             </button>
         </div><div>
-            <label for="output" class="block text-sm font-medium text-gray-700 mb-1">Formatted Output:</label>
-            <div class="relative">
+            <label for="output" class="block text-sm font-medium text-gray-700 mb-1">Formatted Output:</label>            <div class="relative">
                 <textarea id="output" rows="15" class="w-full p-3 border border-gray-300 rounded-md bg-gray-50 shadow-sm" readonly placeholder="Formatted Q&A pairs will appear here..."></textarea>
                 <button id="copyButton" class="absolute top-3 right-3 bg-gray-200 hover:bg-gray-300 text-gray-700 p-2 rounded-md opacity-70 hover:opacity-100 transition-opacity" title="Copy to clipboard">
                     <i class="fas fa-copy"></i>
                 </button>
-            </div>
-        </div>
+                <button id="previewOutputButton" class="absolute top-3 right-12 bg-gray-200 hover:bg-gray-300 text-gray-700 p-2 rounded-md opacity-70 hover:opacity-100 transition-opacity" title="Preview markdown">
+                    <i class="fas fa-eye"></i>
+                </button>
+            </div>        </div>
 
         <div id="messageArea" class="mt-4 text-center text-red-600 font-medium"></div>
 
+    </div>
+
+    <!-- Markdown Preview Modal -->
+    <div id="previewModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-lg shadow-xl mx-4 my-6 overflow-auto w-full max-w-4xl max-h-[90vh]">
+            <div class="flex justify-between items-center p-4 border-b">
+                <h2 class="text-lg font-medium text-gray-900">Markdown Preview</h2>
+                <button id="closeModalButton" class="text-gray-400 hover:text-gray-500">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="previewContent" class="p-6 prose prose-sm sm:prose lg:prose-lg mx-auto"></div>
+        </div>
     </div>
 
     <script>
@@ -157,14 +175,13 @@
                     const answer = answers[num];
 
                     if (question && answer) {
-                        outputLines.push(`**Question**: ${num}\n${question}`);
-                        outputLines.push(`**Answer**: ${answer}`);
+                        outputLines.push(`**Question**: ${num}\n${question}\n`);
+                        outputLines.push(`**Answer**: ${answer}\n`);
                     } else if (question) {
-                         outputLines.push(`Question: ${num}\n${question}`);
-                         outputLines.push(`Answer: -- Answer not found --`);
+                         outputLines.push(`Question: ${num}\n${question}\n`);
+                         outputLines.push(`Answer: -- Answer not found --\n`);
                          console.warn(`Answer for question ${num} not found.`);
                     }
-                    outputLines.push(''); // Add a blank line between Q&A pairs
                 });
 
                 // Display the formatted output
@@ -201,9 +218,7 @@
                     console.error('Failed to copy text: ', err);
                     messageArea.textContent = 'Failed to copy text to clipboard.';
                 });
-        });
-
-        // Optional: Add initial example content to the input textarea
+        });        // Optional: Add initial example content to the input textarea
         markdownInput.value = `## Quiz
 
 1. What is the primary function of the DALL-E model within the Azure OpenAI service?
@@ -230,6 +245,78 @@
 9. The "data" element in the DALL-E 3 REST API response contains a JSON array. Each object in the array includes the "url" of the generated PNG image file and the "revised_prompt" that was used to generate the image.
 10. The purpose of the "revised_prompt" field in the DALL-E 3 REST API response is to show the potentially modified version of the original prompt that the system used to generate the image. This indicates any adjustments made by DALL-E to achieve better results.`;
 
+        // Markdown preview functionality
+        const previewModal = document.getElementById('previewModal');
+        const previewContent = document.getElementById('previewContent');
+        const closeModalButton = document.getElementById('closeModalButton');
+        const previewInputButton = document.getElementById('previewInputButton');
+        const previewOutputButton = document.getElementById('previewOutputButton');        // Show preview modal with content from the specified textarea
+        function showPreview(contentToPreview) {
+            // Configure marked.js options - using current version's API
+            marked.use({
+                gfm: true,            // GitHub Flavored Markdown
+                breaks: true,         // Render line breaks as <br>
+                headerIds: true,      // Include header IDs
+                mangle: false,        // Don't escape HTML
+                pedantic: false,      // Conform to markdown.pl
+                silent: false,        // Throw on error
+                smartLists: true,     // Use smarter list behavior
+                smartypants: true     // Use "smart" typographic punctuation
+            });
+            
+            try {
+                // Add double newlines before headings to ensure proper rendering
+                const formattedContent = contentToPreview
+                    .replace(/^(#+\s+)/gm, '\n\n$1')  // Add space before headings
+                    .replace(/(\n\d+\.)/g, '\n\n$1'); // Add space before numbered lists
+                
+                // Convert markdown to HTML using marked.js
+                previewContent.innerHTML = marked.parse(formattedContent);
+                
+                // Apply additional styling to ensure lists render properly
+                const style = document.createElement('style');
+                style.textContent = `
+                    .prose ol { list-style-type: decimal; padding-left: 2em; }
+                    .prose h2 { font-size: 1.5em; font-weight: bold; margin-top: 1em; margin-bottom: 0.5em; }
+                `;
+                previewContent.appendChild(style);
+            } catch (error) {
+                console.error("Error parsing markdown:", error);
+                previewContent.innerHTML = `<p class="text-red-500">Error rendering markdown: ${error.message}</p>`;
+            }
+            
+            // Show the modal
+            previewModal.classList.remove('hidden');
+        }
+
+        // Close the preview modal
+        closeModalButton.addEventListener('click', () => {
+            previewModal.classList.add('hidden');
+        });
+
+        // Also close modal when clicking outside the content area
+        previewModal.addEventListener('click', (e) => {
+            if (e.target === previewModal) {
+                previewModal.classList.add('hidden');
+            }
+        });
+
+        // Preview input textarea
+        previewInputButton.addEventListener('click', () => {
+            showPreview(markdownInput.value);
+        });
+
+        // Preview output textarea
+        previewOutputButton.addEventListener('click', () => {
+            showPreview(outputArea.value);
+        });
+
+        // Escape key to close modal
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !previewModal.classList.contains('hidden')) {
+                previewModal.classList.add('hidden');
+            }
+        });
     </script>
 
 </body>
